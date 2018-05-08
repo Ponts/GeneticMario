@@ -114,10 +114,4 @@ function this.serialize()
 	return string
 end
 
-function this.deserialize(str)
-	
-end
-
-
-
 return this
