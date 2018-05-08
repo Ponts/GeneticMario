@@ -10,6 +10,8 @@ controller["P1 Right"] = false
 Filename = "lvl2.State"
 resolution = 16
 sightRange = 7
+topology = {450,8,8,7}
+timeout = 180
 
 function bitwiseand(a,b) 
 	local result = 0
@@ -25,6 +27,62 @@ function bitwiseand(a,b)
 	return result
 end
 
+function getInitialPopulation(size)
+	population = {}
+	for i = 1,size do
+		population[i] = dofile "brain.lua"
+		population[i].constructor(topology)
+	end
+	return population
+end
+
+function runPopulation(population)
+	scores = {}
+	for i = 1,#population do
+		scores[i], _ = play(population[i])
+	end
+
+	--Choose best stuffisisefs TODO
+	local bestScore = -math.huge
+	local bestIndex = 1
+	for i = 1,#population do
+		if bestScore < scores[i] then
+			bestScore = scores[i]
+			bestIndex = i
+		end
+	end
+
+	return bestIndex
+end
+
+
+
+function play(brain)
+	savestate.load(Filename)
+	local prevMarioX = 0
+	local totalTime = 0
+	local stuckTime = 0
+	while true do
+		totalTime = totalTime + 1
+		marioX, inputs = getInputs()
+		if marioX > prevMarioX then
+			prevMarioX = marioX
+			stuckTime = totalTime
+		elseif totalTime - stuckTime > timeout then
+			return marioX - (totalTime), totalTime
+		end
+
+		--displayInputs(inputs)
+		output = brain.think(inputs)
+		i = 1
+		for key,_ in pairs(controller) do
+			controller[key] = output[i] > 0.5
+			i = i + 1
+		end
+		joypad.set(controller)
+		emu.frameadvance()
+	end
+end
 
 function clearController()
 	for button, _ in pairs(controller) do
@@ -101,12 +159,12 @@ function getInputs()
 			end
 		end
 	end
-	return inputs
+	return marioX, inputs
 end
 
 function displayInputs(inputs)
 	local tiles = {}
-	local xPad = 30	
+	local xPad = 40	
 	local yPad = 70
 	local tileSize = 4
 	local count = 1
@@ -141,16 +199,31 @@ function displayInputs(inputs)
 	end
 end
 
-
-console.writeline("SUCCESS")
-controller["P1 Right"] = true
-joypad.set(controller)
-
-
-savestate.load(Filename)
-while true do
-	inputs = getInputs()
-	displayInputs(inputs)
-	emu.frameadvance()
+function saveBrain(brain, filename)
+	local f = assert(io.open("meta/"..filename, "w"))
+	f:write(brain.serialize())
+	f:close()
 end
 
+function loadBrain(filename)
+	local f = assert(io.open("meta/"..filename, "r"))
+	serialized = f:read("*all")
+	
+	local brain = dofile "brain.lua"
+	brain.stringConstructor(serialized)
+	f:close()
+	return brain
+end
+
+
+population = getInitialPopulation(15)
+bestI = runPopulation(population)
+saveBrain(population[bestI], "test")
+brain = {loadBrain("test")}
+
+print("RUNNING BEST NAOOOOOW")
+runPopulation(brain)
+
+
+
+print("DONE")
