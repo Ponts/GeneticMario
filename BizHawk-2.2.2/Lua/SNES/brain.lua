@@ -1,20 +1,21 @@
 local this = {}
 
-
+unbiasedMutateP = 0.1
+biasedMutateP = 0.1
 function this.constructor(topology)
 	this.topology = topology
 
 	--create matrixes
 	this.W = {}
 	this.b = {}
-	for layer=1,#topology-1 do
+	for layer=1,#this.topology-1 do
 		this.b[layer] = {}
 		this.W[layer] = {}
-		for i = 1,topology[layer+1] do
+		for i = 1,this.topology[layer+1] do
 			this.W[layer][i] = {}
-			this.b[layer][i] = gaussian(0,2/topology[layer])
-			for j = 1,topology[layer] do
-				this.W[layer][i][j] = gaussian(0,2/(topology[layer])) 
+			this.b[layer][i] = gaussian(0,2/this.topology[layer])
+			for j = 1,this.topology[layer] do
+				this.W[layer][i][j] = gaussian(0,2/(this.topology[layer])) 
 			end
 		end
 	end
@@ -48,8 +49,6 @@ function this.stringConstructor(str)
 		end
 		rowIndex = rowIndex + 1
 	end
-
-	
 end
 
 function this.think(input)
@@ -87,6 +86,66 @@ function this.add(A,B)
 	return C
 end
 
+function this.mutate()
+	for layer = 1,#this.W do
+		for i = 1,#this.W[layer] do
+			for j = 1,#this.W[layer][i] do
+				if math.random() <= unbiasedMutateP then
+					this.W[layer][i][j] = gaussian(0,2/this.topology[layer])
+				end
+				if math.random() <= biasedMutateP then
+					this.W[layer][i][j] = this.W[layer][i][j] + gaussian(0,2/this.topology[layer])
+				end
+			end
+		end
+		for i = 1,#this.b[layer] do
+			if math.random() <= unbiasedMutateP then
+				this.b[layer][i] = gaussian(0,2/this.topology[layer])
+			end
+			if math.random() <= biasedMutateP then
+				this.b[layer][i] = this.b[layer][i] + gaussian(0,2/this.topology[layer])
+			end
+		end
+	end
+end
+
+function this.mate(that)
+	local child = this.copy()
+	for layer = 1,#this.W do
+		for i = 1, #this.W[layer] do
+			if math.random() <= 0.5 then
+				for j = 1, #that.W[layer][i] do
+					child.W[layer][i][j] = that.W[layer][i][j]
+				end
+				child.b[layer][i] = that.b[layer][i]
+			end
+		end
+	end
+	return child
+end
+
+function this.copy()
+	local brain = dofile "brain.lua"
+	brain.topology = {}
+	for i = 1,#this.topology do
+		brain.topology[i] = this.topology[i]
+	end
+	brain.W = {}
+	brain.b = {}
+	for layer = 1,#this.W do
+		brain.W[layer] = {}
+		brain.b[layer] = {}
+		for i = 1,#this.W[layer] do
+			brain.W[layer][i] = {}
+			brain.b[layer][i] = this.b[layer][i]
+			for j = 1,#this.W[layer][i] do
+				brain.W[layer][i][j] = this.W[layer][i][j]
+			end
+		end
+	end
+	return brain
+end
+
 function gaussian (mean, variance)
     return  math.sqrt(-2 * variance * math.log(math.random())) *
             math.cos(2 * math.pi * math.random()) + mean
@@ -98,7 +157,6 @@ function this.serialize()
 		string = string..this.topology[i] .. " "
 	end
 	string = string.."\n"
-
 	for layer = 1,#this.W do
 		for i = 1,#this.W[layer] do
 			for j = 1,#this.W[layer][i] do

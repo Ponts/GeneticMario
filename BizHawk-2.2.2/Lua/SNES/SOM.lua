@@ -36,12 +36,12 @@ function getInitialPopulation(size)
 	return population
 end
 
-function runPopulation(population)
-	scores = {}
+function runPopulation(population, generationId)
+	local scores = {}
+	local times = {}
 	for i = 1,#population do
-		scores[i], _ = play(population[i])
+		scores[i], times[i] = play(population[i], generationId, i)
 	end
-
 	--Choose best stuffisisefs TODO
 	local bestScore = -math.huge
 	local bestIndex = 1
@@ -51,13 +51,53 @@ function runPopulation(population)
 			bestIndex = i
 		end
 	end
-
-	return bestIndex
+	return scores, bestIndex, times
 end
 
+function getNewPopulation(population, scores, bestIndex)
+	local newPopulation = {}
+	local P = softmax(scores)
+	newPopulation[#newPopulation+1] = population[bestIndex].copy()
+	while #newPopulation < #population do
+		local male = getRandomBrain(population, P)
+		local female = getRandomBrain(population, P)
+		local child = male.mate(female)
+		child.mutate()
+		newPopulation[#newPopulation+1] = child
 
+	end
+	return newPopulation
+end
 
-function play(brain)
+function getRandomBrain(population, P)
+	local value = math.random()
+	local border = 0
+	for i = 1,#P do
+		border = border + P[i]
+		if value < border then
+			return population[i]
+		end
+	end
+	return population[#population]
+end
+
+function softmax(x)
+	local sum = 0
+	for i = 1,#x do
+		sum = sum + math.exp(x[i])
+	end
+	local P = {}
+	for i = 1, #x do
+		P[i] = math.exp(x[i])/sum
+	end
+	return P
+end
+
+function calculateFitness(pos, time)
+	return pos - (0.1*time)
+end
+
+function play(brain, generationId, populationId)
 	savestate.load(Filename)
 	local prevMarioX = 0
 	local totalTime = 0
@@ -69,10 +109,9 @@ function play(brain)
 			prevMarioX = marioX
 			stuckTime = totalTime
 		elseif totalTime - stuckTime > timeout then
-			return marioX - (totalTime), totalTime
+			return calculateFitness(marioX, totalTime), totalTime
 		end
-
-		--displayInputs(inputs)
+		displayInfo(generationId, populationId, calculateFitness(marioX, totalTime), inputs, false)
 		output = brain.think(inputs)
 		i = 1
 		for key,_ in pairs(controller) do
@@ -97,8 +136,8 @@ function getPositions()
 end
 
 function getTile(marioX, marioY, dx, dy)
-	x = math.floor((marioX+dx+8)/16)
-	y = math.floor((marioY+dy)/16)
+	local x = math.floor((marioX+dx+8)/16)
+	local y = math.floor((marioY+dy)/16)
 	return memory.readbyte(0x1C800 + math.floor(x/16)*0x1B0 + y*16 + x%16)
 end
 
@@ -125,7 +164,6 @@ function getSprites()
 			sprites[#sprites + 1] = {["x"]=spriteX, ["y"]=spriteY}
 		end
 	end
-
 	return sprites
 end
 
@@ -133,8 +171,6 @@ function getInputs()
 	local marioX, marioY = getPositions()
 	local sprites = getSprites()
 	local inputs = {}
-
-
 	for dx = -sightRange*resolution, sightRange*resolution, resolution do
 		for dy = -sightRange*resolution, sightRange*resolution, resolution do
 			inputs[#inputs+1] = 0
@@ -151,8 +187,8 @@ function getInputs()
 			inputs[#inputs+1]=0
 
 			for i = 1, #sprites do
-				xDist = math.abs(sprites[i].x - (marioX+dx))
-				yDist = math.abs(sprites[i].y - (marioY+dy))
+				local xDist = math.abs(sprites[i].x - (marioX+dx))
+				local yDist = math.abs(sprites[i].y - (marioY+dy))
 				if xDist <= 8 and yDist <=8 then
 					inputs[#inputs] = 1
 				end
@@ -162,41 +198,47 @@ function getInputs()
 	return marioX, inputs
 end
 
-function displayInputs(inputs)
-	local tiles = {}
-	local xPad = 40	
-	local yPad = 70
-	local tileSize = 4
-	local count = 1
-	for x = -sightRange, sightRange do
-		for y = -sightRange, sightRange do
-			tile = {}
-			tile.x = xPad+tileSize*x
-			tile.y = yPad+tileSize*y
-			tile.value = inputs[count]
-			tiles[#tiles + 1] = tile
-			count=count+1
+function displayInfo(generationId, populationId, fitness, inputs, showInputArea)
+	if showInputArea then
+		local tiles = {}
+		local xPad = 40	
+		local yPad = 70
+		local tileSize = 4
+		local count = 1
+		for x = -sightRange, sightRange do
+			for y = -sightRange, sightRange do
+				local tile = {}
+				tile.x = xPad+tileSize*x
+				tile.y = yPad+tileSize*y
+				tile.value = inputs[count]
+				tiles[#tiles + 1] = tile
+				count=count+1
+			end
 		end
-	end
-	for x = -sightRange, sightRange do
-		for y = -sightRange, sightRange do
-			tile = {}
-			tile.x = xPad+tileSize*x
-			tile.y = yPad+tileSize*y
-			tile.value = -inputs[count]
-			tiles[#tiles + 1] = tile
-			count=count+1
+		for x = -sightRange, sightRange do
+			for y = -sightRange, sightRange do
+				local tile = {}
+				tile.x = xPad+tileSize*x
+				tile.y = yPad+tileSize*y
+				tile.value = -inputs[count]
+				tiles[#tiles + 1] = tile
+				count=count+1
+			end
+		end
+
+		gui.drawBox(xPad-sightRange*tileSize-3, yPad-sightRange*tileSize-3, xPad+sightRange*tileSize+2, yPad+sightRange*tileSize+2, 0x00000000, 0x80808080)
+		for i, tile in pairs(tiles) do
+			if tile.value == 1 then
+				gui.drawBox(tile.x -tileSize/2,tile.y-tileSize/2,tile.x+tileSize/2,tile.y+tileSize/2,0x00000000,0xFFFFFFFF)
+			elseif tile.value == -1 then
+				gui.drawBox(tile.x -tileSize/2,tile.y-tileSize/2,tile.x+tileSize/2,tile.y+tileSize/2,0x00000000,0xFFFF0000)
+			end
 		end
 	end
 
-	gui.drawBox(xPad-sightRange*tileSize-3, yPad-sightRange*tileSize-3, xPad+sightRange*tileSize+2, yPad+sightRange*tileSize+2, 0x00000000, 0x80808080)
-	for i, tile in pairs(tiles) do
-		if tile.value == 1 then
-			gui.drawBox(tile.x -tileSize/2,tile.y-tileSize/2,tile.x+tileSize/2,tile.y+tileSize/2,0x00000000,0xFFFFFFFF)
-		elseif tile.value == -1 then
-			gui.drawBox(tile.x -tileSize/2,tile.y-tileSize/2,tile.x+tileSize/2,tile.y+tileSize/2,0x00000000,0xFFFF0000)
-		end
-	end
+	--gui.drawBox(0,0,255,70,0xF0000000,0xA0808080)
+	gui.drawText(0,10,"Generation: "..generationId.."\nPopulation: "..populationId.."\nFitness: "..math.floor(fitness), _, 0xA0808080, 12)
+
 end
 
 function saveBrain(brain, filename)
@@ -208,22 +250,24 @@ end
 function loadBrain(filename)
 	local f = assert(io.open("meta/"..filename, "r"))
 	serialized = f:read("*all")
-	
 	local brain = dofile "brain.lua"
 	brain.stringConstructor(serialized)
 	f:close()
 	return brain
 end
 
+function main()
+	local population = getInitialPopulation(15)
+	local counter = 0
+	while counter < 20 do
+		print("Generation nr: " ..counter)
+		local scores, bestI, times = runPopulation(population, counter)
+		population = getNewPopulation(population, scores, bestI)
+		counter = counter + 1
+	end
+end
 
-population = getInitialPopulation(15)
-bestI = runPopulation(population)
-saveBrain(population[bestI], "test")
-brain = {loadBrain("test")}
 
-print("RUNNING BEST NAOOOOOW")
-runPopulation(brain)
-
-
+main()
 
 print("DONE")
