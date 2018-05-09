@@ -41,6 +41,9 @@ function runPopulation(population, generationId)
 	local times = {}
 	for i = 1,#population do
 		scores[i], times[i] = play(population[i], generationId, i)
+		while forms.ischecked(FORMrunBestBox) do
+			play(population[1], "Best", "Best")
+		end
 	end
 	--Choose best stuffisisefs TODO
 	local bestScore = -math.huge
@@ -51,6 +54,7 @@ function runPopulation(population, generationId)
 			bestIndex = i
 		end
 	end
+	forms.settext(FORMfitnessLabel,"Best fitness: "..math.floor(bestScore))
 	return scores, bestIndex, times
 end
 
@@ -241,33 +245,100 @@ function displayInfo(generationId, populationId, fitness, inputs, showInputArea)
 
 end
 
+function saveGeneration(generationId, population, scores, times)
+	local f = assert(io.open("meta/generationData/generation"..generationId, "wb"))
+	for i = 1, #population do
+		f:write("<brain>\n")
+		f:write("<meta>" .. scores[i] .. " " .. times[i] .. "</meta>".. "\n")
+		f:write(population[i].serialize())
+		f:write("</brain>\n")
+	end
+	f:close()
+end
+
+function loadGeneration(generationId)
+	local f = assert(io.open("meta/generationData/generation"..generationId, "rb"))
+	local str = f:read("*all")
+	local pop = {}
+	local brainString = ""
+	local skip = false
+	for line in str:gmatch("[^\\\n]+") do
+		if skip then
+			skip = false
+		elseif line == "<brain>" then
+			skip = true
+			brainString = ""
+		elseif line == "</brain>" then
+			local brain = dofile "brain.lua"
+			brain.stringConstructor(brainString)
+			pop[#pop+1] = brain
+		else
+			brainString = brainString .. line .. "\n"
+		end
+	end
+	
+	f:close()
+	return pop
+end
+
+
 function saveBrain(brain, filename)
-	local f = assert(io.open("meta/"..filename, "w"))
+	local f = assert(io.open("meta/"..filename, "wb"))
 	f:write(brain.serialize())
 	f:close()
 end
 
 function loadBrain(filename)
-	local f = assert(io.open("meta/"..filename, "r"))
-	serialized = f:read("*all")
+	local f = assert(io.open("meta/"..filename, "rb"))
+	local serialized = f:read("*all")
 	local brain = dofile "brain.lua"
 	brain.stringConstructor(serialized)
 	f:close()
 	return brain
 end
 
+function generateForm()
+	local myForm = forms.newform(200, 260, "Run best")
+	forms.setlocation(myForm, 206, 3)
+	FORMfitnessLabel = forms.label(myForm, "Best fitness: "..0, 5, 5)
+	FORMrunBestBox = forms.checkbox(myForm, "If I check I good",5,25)
+	FORMsaveThis = forms.button(myForm, "Save", setSaveThisGen,5, 50)
+end
+
+saveThisGen = false
+function setSaveThisGen()
+	saveThisGen = true
+end
+
 function main()
-	local population = getInitialPopulation(15)
-	local counter = 0
-	while counter < 20 do
-		print("Generation nr: " ..counter)
-		local scores, bestI, times = runPopulation(population, counter)
+	generateForm()
+	local generation = 1
+	local population = {}
+	local startTime = os.clock()
+	if generation == 1 then
+		population = getInitialPopulation(15)
+	else
+		population = loadGeneration(generation)
+	end
+	
+	while generation <= 20 do
+		local scores, bestI, times = runPopulation(population, generation)
+		local elapsedTime = os.clock() - startTime
+		if saveThisGen or elapsedTime > 3600 then
+			saveGeneration(generation,population,scores,times)
+			startTime = os.clock()
+			saveThisGen = false
+		end
+		
 		population = getNewPopulation(population, scores, bestI)
-		counter = counter + 1
+		generation = generation + 1
 	end
 end
 
 
 main()
+
+
+
 
 print("DONE")
