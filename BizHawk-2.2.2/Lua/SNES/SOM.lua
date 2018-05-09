@@ -298,11 +298,12 @@ function loadBrain(filename)
 end
 
 function generateForm()
-	local myForm = forms.newform(200, 260, "Run best")
+	local myForm = forms.newform(200, 145, "Run best")
 	forms.setlocation(myForm, 206, 3)
 	FORMfitnessLabel = forms.label(myForm, "Best fitness: "..0, 5, 5)
-	FORMrunBestBox = forms.checkbox(myForm, "If I check I good",5,25)
-	FORMsaveThis = forms.button(myForm, "Save", setSaveThisGen,5, 50)
+	FORMrunBestBox = forms.checkbox(myForm, "If I check I good",5,30)
+	FORMsaveThis = forms.button(myForm, "Save", setSaveThisGen,5, 55)
+	FORMlastSavedGen = forms.label(myForm, "Last saved gen: "..0 ,5,80)
 end
 
 saveThisGen = false
@@ -321,11 +322,12 @@ function main()
 		population = loadGeneration(generation)
 	end
 	
-	while generation <= 20 do
+	while true do
 		local scores, bestI, times = runPopulation(population, generation)
 		local elapsedTime = os.clock() - startTime
 		if saveThisGen or elapsedTime > 3600 then
 			saveGeneration(generation,population,scores,times)
+			forms.settext(FORMlastSavedGen, "Last saved gen: "..generation)
 			startTime = os.clock()
 			saveThisGen = false
 		end
