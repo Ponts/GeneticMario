@@ -13,20 +13,6 @@ sightRange = 6
 topology = {338,32,16,7}
 timeout = 180
 
-function bitwiseand(a,b) 
-	local result = 0
-	local bitval = 1
-	while a > 0 and b > 0 do
-		if a % 2 == 1 and b % 2 == 1 then
-			result = result + bitval
-		end
-		bitval = bitval*2
-		a = math.floor(a/2)
-		b = math.floor(b/2)
-	end
-	return result
-end
-
 function getInitialPopulation(size)
 	population = {}
 	for i = 1,size do
@@ -128,7 +114,9 @@ function play(brain, generationId, populationId)
 		elseif totalTime - stuckTime > timeout then
 			return calculateFitness(marioX, totalTime)
 		end
-		displayInfo(generationId, populationId, calculateFitness(marioX, totalTime), inputs, false)
+		if forms.ischecked(FORMCurrData) then 
+			displayInfo(generationId, populationId, calculateFitness(marioX, totalTime), inputs)
+		end
 		output = brain.think(inputs)
 		i = 1
 		for key,_ in pairs(controller) do
@@ -217,10 +205,10 @@ function getInputs()
 end
 
 function displayInfo(generationId, populationId, fitness, inputs, showInputArea)
-	if showInputArea then
+	if forms.ischecked(FORMShowInput) then 
 		local tiles = {}
-		local xPad = 40	
-		local yPad = 70
+		local xPad = 220
+		local yPad = 35
 		local tileSize = 4
 		local count = 1
 		for x = -sightRange, sightRange do
@@ -258,19 +246,22 @@ function displayInfo(generationId, populationId, fitness, inputs, showInputArea)
 
 end
 
-function saveGeneration(generationId, population)
+function saveGeneration(population, generationId)
 	local saveString = ""
 	for i = 1, #population do
 		saveString = saveString .. "<brain>\n"
 		saveString = saveString .. population[i].serialize()
 		saveString = saveString .. "</brain>\n"
 	end
-	local f = assert(io.open("meta/generationData/generation"..generationId, "wb+"))
+	local f = assert(io.open("meta/backup", "wb+"))
 	f:write(saveString)
+	f:close()
+	local f = assert(io.open("meta/generationID", "wb+"))
+	f:write("Generation backuped at: "..generationId)
 	f:close()
 end
 
-function saveMeta(generationId, scores, bestId)
+function saveMeta(generationId, scores, bestId, startTime)
 	local meanScore = 0.0
 	for i = 1,#scores do
 		meanScore = meanScore + scores[i]
@@ -281,15 +272,15 @@ function saveMeta(generationId, scores, bestId)
 		variance = math.pow(scores[i] - meanScore,2)
 	end
 	variance = variance/#scores
-
+	timeSinceStart = os.clock() - startTime
 	local f = assert(io.open("meta/metaData", "a"))
-	f:write(generationId .. " " .. scores[bestId] .. " " .. meanScore .. " " .. variance .. "\n")
+	f:write(generationId .. " " .. scores[bestId] .. " " .. meanScore .. " " .. variance .." "..timeSinceStart.. "\n")
 	f:close()
 end
 
 
-function loadGeneration(generationId)
-	local f = assert(io.open("meta/generationData/generation"..generationId, "rb"))
+function loadGeneration()
+	local f = assert(io.open("meta/backup", "rb"))
 	local str = f:read("*all")
 	local pop = {}
 	local brainString = ""
@@ -353,17 +344,19 @@ function loadChampions()
 end
 
 function generateForm()
-	local myForm = forms.newform(200, 300, "Run best")
+	local myForm = forms.newform(200, 340, "Run best")
 	forms.setlocation(myForm, 206, 3)
 	FORMfitnessLabel = forms.label(myForm, "Best fitness: "..0, 5, 5)
-	FORMrunBestBox = forms.checkbox(myForm, "If I check I good",5,30)
+	FORMrunBestBox = forms.checkbox(myForm, "Run Champ!",5,30)
 	FORMsaveThis = forms.button(myForm, "Save", setSaveThisGen,5, 55)
 	FORMlastSavedGen = forms.label(myForm, "Last saved gen: "..0 ,5,80)
-	FORMrunChampsBox = forms.checkbox(myForm, "Run champs!",5,105)
+	FORMrunChampsBox = forms.checkbox(myForm, "Run Champs!",5,105)
 	FORMmapSelect = forms.textbox(myForm, Filename,_,_,_,5,130)
 	FORMgenSelect = forms.textbox(myForm, 0,_,_,_,5,155)
 	FORMstartButton = forms.button(myForm, "Start", startPlay, 5,180)
 	FORMendButton = forms.button(myForm, "Stop", stop, 5, 205)
+	FORMShowInput = forms.checkbox(myForm, "Show Input",5,230)
+	FORMCurrData = forms.checkbox(myForm, "Show Current Data",5,256)
 	event.onexit(destroyForm)
 
 end
@@ -396,11 +389,12 @@ function main()
 	local population = {}
 	local championScore = -100.0
 	local notLoaded = true
+	local startTime = os.clock()
 	if generation == 0 then
-		population = getInitialPopulation(100)
+		population = getInitialPopulation(10)
 		generation = 1
 	else
-		population = loadGeneration(generation)
+		population = loadGeneration()
 		championScore = play(population[1],generation,1)
 		notLoaded = false
 	end
@@ -408,13 +402,15 @@ function main()
 		local scores, bestI = runPopulation(population, generation, championScore)
 		championScore = scores[bestI]
 		if saveThisGen and notLoaded then
-			saveGeneration(generation,population)
+			saveGeneration(population, generation)
 			forms.settext(FORMlastSavedGen, "Last saved gen: "..generation)
 			saveChamp(population[bestI],generation)
 			saveThisGen = false
 		end
+		if notLoaded then 
+			saveMeta(generation, scores, bestI, startTime)
+		end
 		notLoaded = true
-		saveMeta(generation, scores, bestI)
 		population = getNewPopulation(population, scores, bestI)
 		generation = generation + 1
 	end
