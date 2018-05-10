@@ -1,6 +1,6 @@
 local this = {}
 
-unbiasedMutateP = 0.1
+unbiasedMutateP = 0.001
 biasedMutateP = 0.1
 function this.constructor(topology)
 	this.topology = topology
@@ -52,7 +52,7 @@ function this.stringConstructor(str)
 end
 
 function this.think(input)
-	h = input
+	local h = input
 	for layer=1,#this.W do
 		h = this.add(this.dot(this.W[layer],h),this.b[layer])
 		h = this.sigmoid(h)
@@ -79,7 +79,7 @@ function this.dot(A,B)
 end
 
 function this.add(A,B)
-	C = {}
+	local C = {}
 	for i = 1,#A do
 		C[i] = A[i] + B[i]
 	end
