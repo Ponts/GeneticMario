@@ -96,20 +96,17 @@ function softmax(x)
 	for i = 1,#x do
 		x[i] = x[i] - min
 	end
-	local max = math.max(unpack(x))
-	for i = 1,#x do
-		x[i] = x[i]/max
-	end
 	local sum = 0.0
 	for i = 1,#x do
-		sum = sum + math.exp(x[i])
+		sum = sum + x[i]
 	end
 	local P = {}
 	for i = 1, #x do
-		P[i] = math.exp(x[i])/sum
+		P[i] = x[i]/sum
 	end
 	return P
 end
+
 
 
 function calculateFitness(pos, time)
