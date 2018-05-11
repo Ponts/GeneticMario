@@ -112,10 +112,10 @@ function play(brain, generationId, populationId)
 			prevMarioX = marioX
 			stuckTime = totalTime
 		elseif totalTime - stuckTime > timeout then
-			return calculateFitness(marioX, totalTime)
+			return calculateFitness(prevMarioX, totalTime)
 		end
 		if forms.ischecked(FORMCurrData) then 
-			displayInfo(generationId, populationId, calculateFitness(marioX, totalTime), inputs)
+			displayInfo(generationId, populationId, calculateFitness(prevMarioX, totalTime), inputs)
 		end
 		output = brain.think(inputs)
 		i = 1
@@ -358,7 +358,6 @@ function generateForm()
 	FORMShowInput = forms.checkbox(myForm, "Show Input",5,230)
 	FORMCurrData = forms.checkbox(myForm, "Show Current Data",5,256)
 	event.onexit(destroyForm)
-
 end
 
 saveThisGen = false
@@ -391,7 +390,7 @@ function main()
 	local notLoaded = true
 	local startTime = os.clock()
 	if generation == 0 then
-		population = getInitialPopulation(10)
+		population = getInitialPopulation(100)
 		generation = 1
 	else
 		population = loadGeneration()
