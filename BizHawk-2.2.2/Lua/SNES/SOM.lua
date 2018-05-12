@@ -257,7 +257,7 @@ function saveGeneration(population, generationId)
 	f:write(saveString)
 	f:close()
 	local f = assert(io.open("meta/generationID", "wb+"))
-	f:write("Generation backuped at: "..generationId)
+	f:write(generationId)
 	f:close()
 end
 
@@ -352,11 +352,11 @@ function generateForm()
 	FORMlastSavedGen = forms.label(myForm, "Last saved gen: "..0 ,5,80)
 	FORMrunChampsBox = forms.checkbox(myForm, "Run Champs!",5,105)
 	FORMmapSelect = forms.textbox(myForm, Filename,_,_,_,5,130)
-	FORMgenSelect = forms.textbox(myForm, 0,_,_,_,5,155)
+	FORMloadBackup = forms.checkbox(myForm, "Load backup",5,155)
 	FORMstartButton = forms.button(myForm, "Start", startPlay, 5,180)
 	FORMendButton = forms.button(myForm, "Stop", stop, 5, 205)
 	FORMShowInput = forms.checkbox(myForm, "Show Input",5,230)
-	FORMCurrData = forms.checkbox(myForm, "Show Current Data",5,256)
+	FORMCurrData = forms.checkbox(myForm, "Show Info",5,256)
 	event.onexit(destroyForm)
 end
 
@@ -380,10 +380,20 @@ function startPlay()
 	startPlaying = true
 end
 
+function getbackupID()
+	local f = assert(io.open("meta/generationID", "rb"))
+	local number = f:read("*number")
+	f:close()
+	return number
+end
+
 
 function main()
 	keepPlaying = true
-	local generation = tonumber(forms.gettext(FORMgenSelect))
+	local generation = 0
+	if forms.ischecked(FORMloadBackup) then
+		generation = getbackupID()
+	end
 	Filename = forms.gettext(FORMmapSelect)
 	local population = {}
 	local championScore = -100.0
