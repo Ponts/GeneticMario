@@ -267,7 +267,7 @@ function saveMeta(generationId, scores, bestId, startTime)
 	meanScore = meanScore/#scores
 	local variance = 0.0
 	for i = 1,#scores do
-		variance = math.pow(scores[i] - meanScore,2)
+		variance = variance + math.pow(scores[i] - meanScore,2)
 	end
 	variance = variance/#scores
 	timeSinceStart = os.clock() - startTime
