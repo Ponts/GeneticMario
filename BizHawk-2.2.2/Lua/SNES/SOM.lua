@@ -60,7 +60,6 @@ function getNewPopulation(population, scores, bestIndex)
 		local child = male.mate(female)
 		child.mutate()
 		newPopulation[#newPopulation+1] = child
-
 	end
 	return newPopulation
 end
@@ -79,21 +78,20 @@ end
 
 function softmax(x)
 	local min = math.min(unpack(x))
+	local xNew = {}
 	for i = 1,#x do
-		x[i] = x[i] - min
+		xNew[i] = x[i] - min
 	end
 	local sum = 0.0
-	for i = 1,#x do
-		sum = sum + x[i]
+	for i = 1,#xNew do
+		sum = sum + xNew[i]
 	end
 	local P = {}
-	for i = 1, #x do
-		P[i] = x[i]/sum
+	for i = 1, #xNew do
+		P[i] = xNew[i]/sum
 	end
 	return P
 end
-
-
 
 function calculateFitness(pos, time)
 	return pos - (0.1*time)
