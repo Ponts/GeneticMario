@@ -14,7 +14,7 @@ topology = {338,32,16,7}
 timeout = 180
 
 function getInitialPopulation(size)
-	population = {}
+	local population = {}
 	for i = 1,size do
 		population[i] = dofile "brain.lua"
 		population[i].constructor(topology)
@@ -105,7 +105,7 @@ function play(brain, generationId, populationId)
 	clearController()
 	while true do
 		totalTime = totalTime + 1
-		marioX, inputs = getInputs()
+		local marioX, inputs = getInputs()
 		if marioX > prevMarioX then
 			prevMarioX = marioX
 			stuckTime = totalTime
@@ -115,8 +115,8 @@ function play(brain, generationId, populationId)
 		if forms.ischecked(FORMCurrData) then 
 			displayInfo(generationId, populationId, calculateFitness(prevMarioX, totalTime), inputs)
 		end
-		output = brain.think(inputs)
-		i = 1
+		local output = brain.think(inputs)
+		local i = 1
 		for key,_ in pairs(controller) do
 			controller[key] = output[i] > 0.5
 			i = i + 1
@@ -270,7 +270,7 @@ function saveMeta(generationId, scores, bestId, startTime)
 		variance = variance + math.pow(scores[i] - meanScore,2)
 	end
 	variance = variance/#scores
-	timeSinceStart = os.clock() - startTime
+	local timeSinceStart = os.clock() - startTime
 	local f = assert(io.open("meta/metaData", "a"))
 	f:write(generationId .. " " .. scores[bestId] .. " " .. meanScore .. " " .. variance .." "..timeSinceStart.. "\n")
 	f:close()

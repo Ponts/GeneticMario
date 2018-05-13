@@ -61,10 +61,11 @@ function this.think(input)
 end
 
 function this.sigmoid(h)
+	sh = {}
 	for i = 1,#h do
-		h[i] = 1/(1 + math.exp(-4.9*h[i]))
+		sh[i] = 1/(1 + math.exp(-4.9*h[i]))
 	end
-	return h
+	return sh
 end
 
 function this.dot(A,B)
