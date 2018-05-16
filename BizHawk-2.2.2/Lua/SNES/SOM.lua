@@ -283,9 +283,9 @@ function loadGeneration()
 	local pop = {}
 	local brainString = ""
 	for line in str:gmatch("[^\\\n]+") do
-		if line == "<brain>" then
+		if line:match("<brain>") then
 			brainString = ""
-		elseif line == "</brain>" then
+		elseif line:match("</brain>") then
 			local brain = dofile "brain.lua"
 			brain.stringConstructor(brainString)
 			pop[#pop+1] = brain
@@ -326,10 +326,10 @@ function loadChampions()
 		if generationTime then
 			genIds[#genIds+1] = tonumber(line)
 			generationTime = false
-		elseif line == "<brain>" then
+		elseif line:match("<brain>") then
 			generationTime = true
 			brainString = ""
-		elseif line == "</brain>" then
+		elseif line:match("</brain>") then
 			local brain = dofile "brain.lua"
 			brain.stringConstructor(brainString)
 			pop[#pop+1] = brain
@@ -379,9 +379,11 @@ function startPlay()
 end
 
 function getbackupID()
+	print("getting backup id")
 	local f = assert(io.open("meta/generationID", "rb"))
 	local number = f:read("*number")
 	f:close()
+	print("got backup id")
 	return number
 end
 
